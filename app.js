@@ -1,0 +1,77 @@
+const express = require('express');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode');
+const cors = require('cors');
+const mysql = require('mysql2');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const db = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: '', // your MySQL password
+  database: 'whatsapp_db'
+});
+
+db.connect(err => {
+  if (err) {
+    console.error('❌ MySQL connection error:', err.message);
+  } else {
+    console.log('✅ MySQL connected');
+  }
+});
+
+const client = new Client({
+  authStrategy: new LocalAuth(),
+  puppeteer: { headless: true, args: ['--no-sandbox'] }
+});
+
+let qrCodeImage = '';
+
+client.on('qr', async qr => {
+  qrCodeImage = await qrcode.toDataURL(qr);
+});
+
+client.on('ready', () => {
+  console.log('✅ WhatsApp connected');
+});
+
+client.on('message', msg => {
+  db.query('INSERT INTO messages (session_id, direction, message) VALUES (?, ?, ?)', ['default', 'incoming', msg.body]);
+});
+
+client.initialize();
+
+app.get('/qr', (req, res) => {
+  res.send({ qr: qrCodeImage });
+});
+
+app.post('/send-message', (req, res) => {
+  const { number, message } = req.body;
+  client.sendMessage(`${number}@c.us`, message);
+  db.query('INSERT INTO messages (session_id, direction, message) VALUES (?, ?, ?)', ['default', 'outgoing', message]);
+  res.send({ success: true });
+});
+
+app.get('/messages', (req, res) => {
+  db.query('SELECT * FROM messages ORDER BY timestamp DESC', (err, results) => {
+    if (err) return res.status(500).send(err);
+    res.send(results);
+  });
+});
+
+app.get('/logout', async (req, res) => {
+  try {
+    await client.logout();
+    res.send({ success: true, message: 'Logged out from WhatsApp' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).send({ success: false, message: 'Logout failed' });
+  }
+});
+
+app.listen(3001, () => {
+  console.log('✅ Backend running on http://localhost:3001');
+});
