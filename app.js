@@ -3,16 +3,17 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const cors = require('cors');
 const mysql = require('mysql2');
+const { executablePath } = require('puppeteer');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '', // your MySQL password
-  database: 'whatsapp_db'
+  host: '148.113.35.111',
+  user: 'suriyawe_suriya',
+  password: 'Suriyapauline@143',
+  database: 'suriyawe_whatsapp'
 });
 
 db.connect(err => {
@@ -24,8 +25,10 @@ db.connect(err => {
 });
 
 const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: { headless: true, args: ['--no-sandbox'] }
+  puppeteer: {
+    executablePath: executablePath(),
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  }
 });
 
 let qrCodeImage = '';
@@ -72,6 +75,7 @@ app.get('/logout', async (req, res) => {
   }
 });
 
-app.listen(3001, () => {
-  console.log('✅ Backend running on http://localhost:3001');
+const port = process.env.PORT || 3001;
+app.listen(port, () => {
+  console.log(`✅ Backend running on port ${port}`);
 });
