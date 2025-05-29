@@ -4,6 +4,7 @@ const qrcode = require('qrcode');
 const cors = require('cors');
 const mysql = require('mysql2');
 const { executablePath } = require('puppeteer');
+const chrome = require('chrome-aws-lambda');
 
 const app = express();
 app.use(cors());
@@ -26,8 +27,9 @@ db.connect(err => {
 
 const client = new Client({
   puppeteer: {
-    executablePath: executablePath(),
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: async () => await chrome.executablePath || '/usr/bin/google-chrome-stable',
+    args: chrome.args,
+    headless: chrome.headless,
   }
 });
 
