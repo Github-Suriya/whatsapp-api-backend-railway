@@ -3,7 +3,6 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const cors = require('cors');
 const mysql = require('mysql2');
-const { executablePath } = require('puppeteer');
 const chrome = require('chrome-aws-lambda');
 
 const app = express();
@@ -11,10 +10,10 @@ app.use(cors());
 app.use(express.json());
 
 const db = mysql.createConnection({
-  host: '148.113.35.111',
-  user: 'suriyawe_suriya',
-  password: 'Suriyapauline@143',
-  database: 'suriyawe_whatsapp'
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'whatsapp'
 });
 
 db.connect(err => {
@@ -26,6 +25,7 @@ db.connect(err => {
 });
 
 const client = new Client({
+  authStrategy: new LocalAuth(),
   puppeteer: {
     executablePath: async () => await chrome.executablePath || '/usr/bin/google-chrome-stable',
     args: chrome.args,
@@ -44,7 +44,10 @@ client.on('ready', () => {
 });
 
 client.on('message', msg => {
-  db.query('INSERT INTO messages (session_id, direction, message) VALUES (?, ?, ?)', ['default', 'incoming', msg.body]);
+  db.query(
+    'INSERT INTO messages (session_id, direction, message) VALUES (?, ?, ?)',
+    ['default', 'incoming', msg.body]
+  );
 });
 
 client.initialize();
@@ -56,7 +59,10 @@ app.get('/qr', (req, res) => {
 app.post('/send-message', (req, res) => {
   const { number, message } = req.body;
   client.sendMessage(`${number}@c.us`, message);
-  db.query('INSERT INTO messages (session_id, direction, message) VALUES (?, ?, ?)', ['default', 'outgoing', message]);
+  db.query(
+    'INSERT INTO messages (session_id, direction, message) VALUES (?, ?, ?)',
+    ['default', 'outgoing', message]
+  );
   res.send({ success: true });
 });
 
